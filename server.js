@@ -39,18 +39,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Health Check Route ────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: '🚀 ZeroCommission Backend is running!',
-    version: '1.0.0',
-    endpoints: {
-      applications: '/api/applications',
-      stats: '/api/applications/stats',
-      documents: '/api/applications/:token/documents',
-      files: '/uploads/:token/:filename',
-      admin: '/api/admin/login'
-    },
-  });
+  res.send('Welcome to Zero Commission');
 });
 
 // ─── API Routes ────────────────────────────────────────────────────────────
