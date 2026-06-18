@@ -19,10 +19,11 @@ connectDB();
 // ─── Express App Setup ─────────────────────────────────────────────────────
 const app = express();
 
-// ─── CORS ──────────────────────────────────────────────────────────────────
+const clientUrl = process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, '') : 'http://localhost:5173';
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: [clientUrl, 'http://localhost:5173', 'http://localhost:5174', 'https://zerocommission.netlify.app'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
