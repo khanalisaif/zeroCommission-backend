@@ -3,8 +3,8 @@ import {
   submitApplication,
   getAllApplications,
   getApplicationByToken,
-  updateApplicationStatus,
-  deleteApplication,
+  // updateApplicationStatus,
+  // deleteApplication,
   getStats,
   toggleApplicationView,
   sendUserOtp,
@@ -35,12 +35,12 @@ router.get('/:token', getApplicationByToken);
 
 // ─── Admin Routes ───────────────────────────────────────────────
 // PATCH  /api/applications/:token/status → Update application status
-router.patch('/:token/status', updateApplicationStatus);
+// router.patch('/:token/status', updateApplicationStatus);
 
 // PATCH  /api/applications/:token/view → Update viewed status
 router.patch('/:token/view', toggleApplicationView);
 
 // DELETE /api/applications/:token   → Delete an application
-router.delete('/:token', deleteApplication);
+// router.delete('/:token', deleteApplication);
 
 export default router;

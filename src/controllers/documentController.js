@@ -74,7 +74,7 @@ export const uploadDocuments = async (req, res) => {
     const application = await LoanApplication.findOne({ token });
     if (!application) {
       // Clean up uploaded files if app not found
-      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) { } });
       return res.status(404).json({ success: false, message: 'Application not found.' });
     }
 
@@ -159,7 +159,7 @@ export const deleteDocument = async (req, res) => {
     // Delete file from disk
     const filePath = path.join(UPLOAD_DIR, '..', doc.path);
     if (fs.existsSync(filePath)) {
-      try { fs.unlinkSync(filePath); } catch (_) {}
+      try { fs.unlinkSync(filePath); } catch (_) { }
     }
 
     application.documents.splice(docIndex, 1);
