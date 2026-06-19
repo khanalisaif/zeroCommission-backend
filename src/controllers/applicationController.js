@@ -108,7 +108,6 @@ export const getApplicationByToken = async (req, res) => {
 
 // ─── PATCH /api/applications/:token/status ─────────────────────────────────
 // Update application status (Admin)
-/*
 export const updateApplicationStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -138,11 +137,9 @@ export const updateApplicationStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };
-*/
 
 // ─── DELETE /api/applications/:token ──────────────────────────────────────
 // Delete an application (Admin)
-/*
 export const deleteApplication = async (req, res) => {
   try {
     const application = await LoanApplication.findOneAndDelete({ token: req.params.token });
@@ -155,7 +152,6 @@ export const deleteApplication = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };
-*/
 
 // ─── GET /api/applications/stats ──────────────────────────────────────────
 // Get application statistics (Admin Dashboard)
