@@ -10,7 +10,7 @@ const otpStore = new Map();
 export const adminLogin = async (req, res) => {
   try {
     const { phone } = req.body;
-    
+
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Phone number is required' });
     }
@@ -23,42 +23,44 @@ export const adminLogin = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized. This phone number is not registered as an Admin.' });
     }
 
-    // 2. Generate a 4-digit OTP
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    
-    // Store OTP in memory (expires in 5 minutes)
-    otpStore.set(phone, {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000
-    });
-
-    // 3. Send OTP via External API
-    const otpApiUrl = process.env.OTP_API_URL || 'https://nextpayindia.com/zero/send_otp.php';
+    // 2. Trigger OTP generation and sending via External API
+    const otpApiUrl = process.env.OTP_API_URL || 'https://nextpayindia.com/zero/user/triger_otp.php';
     const adminEmail = process.env.ADMIN_EMAIL || 'mustafahasan555@gmail.com';
 
-    // x-www-form-urlencoded
     const formData = new URLSearchParams();
     formData.append('email', adminEmail);
-    formData.append('otp', otp);
 
     try {
-      await axios.post(otpApiUrl, formData.toString(), {
+      const apiRes = await axios.post(otpApiUrl, formData.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       });
+
+      console.log(`[Admin OTP Trigger] Response from PHP:`, apiRes.data);
+
+      if (apiRes.data && apiRes.data.status === false) {
+        const msg = apiRes.data.message || '';
+        // If the error is just that it's already sent, do not block the UI.
+        if (!msg.toLowerCase().includes('already sent')) {
+          return res.status(400).json({ success: false, message: msg || 'Failed to send OTP' });
+        }
+      }
     } catch (err) {
-      console.error('Failed to send OTP via external API:', err.message);
-      // We will still allow the flow for debugging if the external API fails occasionally
-      // return res.status(500).json({ success: false, message: 'Failed to send OTP email. Please try again later.' });
+      console.error('Failed to trigger Admin OTP via external API:', err.message);
+      return res.status(500).json({ success: false, message: 'Failed to trigger OTP. External API error.' });
     }
 
-    // Don't send OTP in response for production, but maybe log it locally if needed
-    console.log(`[Admin OTP] Sent to ${adminEmail} for phone ${phone}: ${otp}`);
+    // Create masked email for response
+    const [user, domain] = adminEmail.split('@');
+    const maskedEmail = user.length > 2
+      ? `${user.slice(0, 2)}***@${domain}`
+      : `${user}***@${domain}`;
 
     res.status(200).json({
       success: true,
-      message: 'OTP sent successfully to the registered admin email.'
+      message: 'OTP sent successfully to the registered admin email.',
+      data: { email: maskedEmail }
     });
 
   } catch (error) {
@@ -78,24 +80,38 @@ export const adminVerify = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Phone and OTP are required' });
     }
 
-    const storedData = otpStore.get(phone);
-
-    if (!storedData) {
-      return res.status(400).json({ success: false, message: 'OTP expired or not requested' });
+    // Check if phone is authorized
+    const allowedPhonesStr = process.env.ADMIN_PHONES || '';
+    const allowedPhones = allowedPhonesStr.split(',').map(p => p.trim());
+    if (!allowedPhones.includes(phone)) {
+      return res.status(403).json({ success: false, message: 'Unauthorized.' });
     }
 
-    if (Date.now() > storedData.expiresAt) {
-      otpStore.delete(phone);
-      return res.status(400).json({ success: false, message: 'OTP has expired' });
-    }
+    const verifyOtpUrl = process.env.OTP_VERIFY_URL || 'https://nextpayindia.com/zero/verify_otp.php';
+    const adminEmail = process.env.ADMIN_EMAIL || 'mustafahasan555@gmail.com';
 
-    if (storedData.otp !== otp) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    const formData = new URLSearchParams();
+    formData.append('email', adminEmail);
+    formData.append('otp', otp);
+
+    try {
+      const apiRes = await axios.post(verifyOtpUrl, formData.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+
+      console.log(`[Admin OTP Verify] Response from PHP:`, apiRes.data);
+
+      if (apiRes.data && apiRes.data.status === false) {
+        return res.status(400).json({ success: false, message: apiRes.data.message || 'Invalid OTP' });
+      }
+    } catch (err) {
+      console.error('Failed to verify Admin OTP via external API:', err.message);
+      return res.status(500).json({ success: false, message: 'Failed to verify OTP. External API error.' });
     }
 
     // Success
-    otpStore.delete(phone);
-
     res.status(200).json({
       success: true,
       message: 'Login successful',

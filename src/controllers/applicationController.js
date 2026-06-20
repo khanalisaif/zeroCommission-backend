@@ -180,7 +180,7 @@ export const getStats = async (req, res) => {
 export const toggleApplicationView = async (req, res) => {
   try {
     const { viewed } = req.body;
-    
+
     const application = await LoanApplication.findOneAndUpdate(
       { token: req.params.token },
       { viewed },
@@ -229,12 +229,12 @@ export const sendUserOtp = async (req, res) => {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       });
-      
+
       if (apiRes.data && apiRes.data.status === false) {
         const msg = apiRes.data.message || '';
         // If the error is just that it's already sent, do not block the UI.
         if (!msg.toLowerCase().includes('already sent')) {
-           return res.status(400).json({ success: false, message: msg || 'Failed to send OTP' });
+          return res.status(400).json({ success: false, message: msg || 'Failed to send OTP' });
         }
       }
     } catch (err) {
@@ -246,7 +246,7 @@ export const sendUserOtp = async (req, res) => {
 
     // Create masked email
     const [user, domain] = application.email.split('@');
-    const maskedEmail = user.length > 2 
+    const maskedEmail = user.length > 2
       ? `${user.slice(0, 2)}***@${domain}`
       : `${user}***@${domain}`;
 
@@ -274,7 +274,7 @@ export const verifyUserOtp = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Application not found.' });
     }
 
-    const verifyOtpUrl = 'https://nextpayindia.com/zero/user/verify_otp.php';
+    const verifyOtpUrl = 'https://nextpayindia.com/zero/verify_otp.php';
     const formData = new URLSearchParams();
     formData.append('email', application.email);
     formData.append('otp', otp);
@@ -286,9 +286,9 @@ export const verifyUserOtp = async (req, res) => {
         }
       });
       console.log(`[User OTP Verify] Response from PHP:`, apiRes.data);
-      
+
       if (apiRes.data && apiRes.data.status === false) {
-         return res.status(400).json({ success: false, message: apiRes.data.message || 'Invalid OTP' });
+        return res.status(400).json({ success: false, message: apiRes.data.message || 'Invalid OTP' });
       }
     } catch (err) {
       console.error('Failed to verify OTP via external API:', err.message);
