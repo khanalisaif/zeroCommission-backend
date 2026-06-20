@@ -1,8 +1,7 @@
 import LoanApplication from '../models/LoanApplication.js';
 import axios from 'axios';
 
-// In-memory store for User tracking OTPs: Map<token, { otp, expiresAt }>
-const userOtpStore = new Map();
+
 
 // ─── Generate Unique Token ─────────────────────────────────────────────────
 const generateToken = async () => {
@@ -219,33 +218,31 @@ export const sendUserOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No registered email found for this application to send OTP.' });
     }
 
-    // Generate a 4-digit OTP
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    
-    // Store OTP in memory (expires in 5 minutes)
-    userOtpStore.set(token, {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000
-    });
-
-    const otpApiUrl = process.env.OTP_API_URL || 'https://nextpayindia.com/zero/send_otp.php';
+    const triggerOtpUrl = 'https://nextpayindia.com/zero/user/triger_otp.php';
 
     const formData = new URLSearchParams();
     formData.append('email', application.email);
-    formData.append('otp', otp);
 
     try {
-      await axios.post(otpApiUrl, formData.toString(), {
+      const apiRes = await axios.post(triggerOtpUrl, formData.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       });
+      
+      if (apiRes.data && apiRes.data.status === false) {
+        const msg = apiRes.data.message || '';
+        // If the error is just that it's already sent, do not block the UI.
+        if (!msg.toLowerCase().includes('already sent')) {
+           return res.status(400).json({ success: false, message: msg || 'Failed to send OTP' });
+        }
+      }
     } catch (err) {
-      console.error('Failed to send OTP to user via external API:', err.message);
-      // Still allow flow if you prefer, or fail
+      console.error('Failed to trigger OTP via external API:', err.message);
+      return res.status(500).json({ success: false, message: 'Failed to trigger OTP. External API error.' });
     }
 
-    console.log(`[User OTP] Sent to ${application.email} for token ${token}: ${otp}`);
+    console.log(`[User OTP] Triggered external API for ${application.email} and token ${token}`);
 
     // Create masked email
     const [user, domain] = application.email.split('@');
@@ -271,28 +268,31 @@ export const verifyUserOtp = async (req, res) => {
     const { token, otp } = req.body;
     if (!token || !otp) return res.status(400).json({ success: false, message: 'Token and OTP are required' });
 
-    const storedData = userOtpStore.get(token);
-
-    if (!storedData) {
-      return res.status(400).json({ success: false, message: 'OTP expired or not requested' });
-    }
-
-    if (Date.now() > storedData.expiresAt) {
-      userOtpStore.delete(token);
-      return res.status(400).json({ success: false, message: 'OTP has expired' });
-    }
-
-    if (storedData.otp !== otp) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP' });
-    }
-
-    // Success - clear OTP
-    userOtpStore.delete(token);
-
     // Fetch and return application data
     const application = await LoanApplication.findOne({ token });
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
+
+    const verifyOtpUrl = 'https://nextpayindia.com/zero/user/verify_otp.php';
+    const formData = new URLSearchParams();
+    formData.append('email', application.email);
+    formData.append('otp', otp);
+
+    try {
+      const apiRes = await axios.post(verifyOtpUrl, formData.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+      console.log(`[User OTP Verify] Response from PHP:`, apiRes.data);
+      
+      if (apiRes.data && apiRes.data.status === false) {
+         return res.status(400).json({ success: false, message: apiRes.data.message || 'Invalid OTP' });
+      }
+    } catch (err) {
+      console.error('Failed to verify OTP via external API:', err.message);
+      return res.status(500).json({ success: false, message: 'Failed to verify OTP. External API error.' });
     }
 
     return res.status(200).json({ success: true, data: application });
